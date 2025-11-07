@@ -38,4 +38,3 @@ For detailed setup instructions, see
 ## License
 MIT License © 2025 Felix Gutierrez  
 Part of the **Prox Offensive / Proxima Centauri Productions** initiative.
-# README added
