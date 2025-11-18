@@ -1,0 +1,15 @@
+Been tightening up my offensive security workflow, and this week I focused on the foundation: my host machine CLI and AI stack.
+
+I now have a clean Windows-based workspace where all my repos, notes, loot, and long-term research live. Kali is kept strictly as the execution blade. The host handles the thinking, documenting, AI reasoning, and version control.
+
+Highlights:
+• Custom PowerShell profile for navigation and repo awareness  
+• A “DonT’sWorkspace” shortcut that drops me straight into the dev orbit  
+• Local AI (Ollama) running private models for planning and analysis  
+• User-scoped Python with OpenAI & Gemini SDKs ready for future cloud use  
+• Shared-folder pipeline so Kali exports loot directly into my host workspace  
+• Unified repo structure for Prox Offensive and DonTrabajoGPT  
+
+Next step: integrating ReconOps Prox deeper into this environment.
+
+#infosec #redteam #kali #cybersecurity #offensivesecurity #aitools #productivity #workflow #pentesting #hackthebox

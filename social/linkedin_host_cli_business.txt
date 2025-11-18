@@ -1,0 +1,12 @@
+Prox Offensive continues evolving its internal tooling and workflow. This week we finalized the Host AI Orchestration environment supporting our red-team development and research labs.
+
+We now maintain a structured Windows-based workspace for:
+• Repository development (ReconOps Prox, DonTrabajoGPT)  
+• Local AI analysis using private LLMs (Ollama)  
+• Documentation pipelines and writeup workflows  
+• Storage and processing of reconnaissance and lab artifacts  
+
+Kali remains the execution layer for enumeration and exploitation.  
+The host has become the orchestration and analysis hub — making the overall workflow cleaner, faster, and fully repeatable.
+
+#proxoffensive #cybersecurity #redteam #aitools #offensivesecurity #workflow #threathunting #pentesting #hackthebox #infosec
