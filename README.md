@@ -35,6 +35,12 @@ For detailed setup instructions, see
 
 ---
 
+For details on the host CLI & AI environment this project runs in,
+see the Multi-Agent Lab docs:
+
+https://github.com/DonTrabajo/proxoffensive-ai-multiagent-lab/blob/main/docs/host_cli_orchestration.md
+
+
 ## License
 MIT License © 2025 Felix Gutierrez  
 Part of the **Prox Offensive / Proxima Centauri Productions** initiative.
