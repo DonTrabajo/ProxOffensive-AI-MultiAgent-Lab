@@ -1,158 +1,192 @@
-# Host Machine CLI & AI Orchestration Setup
+# Host CLI Environment Setup (Public, OPSEC-Safe Version)
 
-This document outlines the configuration and workflow for the Prox Offensive / Don Trabajo host machine environment. The goal is a clean, stable, AI-augmented development and analysis layer that supports Kali VM offensive operations and long-term project work.
+## 1. Purpose of This Environment
 
-## Overview  
-The Host machine (Windows 11) serves as the brain of the Prox Offensive ecosystem:
+The host operating system is the **orchestration brain** for a red-team and multi‑agent AI lab. It is responsible for:
 
-- AI reasoning (local + optional cloud tools)
-- Code development (DonTrabajoGPT, ReconOps Prox)
-- Git + repo management
-- Writeups, notes, and documentation
-- Long-term loot storage and analysis
+- AI reasoning (local + cloud)
+- Repo and code work (multi‑agent lab, tooling, documentation)
+- Long‑term loot/log storage
+- Note‑taking and reporting
 
-Kali VM acts as the execution layer (enumeration, exploitation, pivoting), with the host providing orchestration and AI assistance.
+The attack VM (e.g., Kali) is the **execution blade**, responsible for:
 
----
+- Enumeration
+- Exploitation
+- Pivoting and tunneling
+- Lab operations
 
-## Directory Structure
+Standard workflow:
 
-```
-C:\Users\Felix\workspace\
-    repos\          # All Git repos
-    loot\           # Kali → Host loot
-    notes\          # Writeups & analysis
-    docs\           # Reference materials
-    scripts\        # Workflow helpers
-```
+> **Host (Brain) → Kali (Blade) → Host (Book + AI)**
+
+This document uses **generic, non‑identifying paths** so it is safe to publish publicly.
 
 ---
 
-## PowerShell Profile Setup  
-A custom prompt was configured to show:
+## 2. Host Workspace Structure (Generic)
 
-- user@host  
-- timestamp  
-- current working directory  
-- git branch (when inside a repo)
+Base directory (example):
+
+```text
+C:\workspace\
+```
+
+Recommended structure:
+
+```text
+workspace/
+    repos/      # All Git repositories
+    loot/       # Shared loot folder (host <-> Kali)
+    notes/      # Writeups & lab notes
+    docs/       # Reference docs & /init files
+    scripts/    # Automation & helper scripts
+```
+
+Guidelines:
+
+- All coding, version control, and AI‑assisted analysis happen on the **host**.
+- Loot is always returned to the **host**.
+- Notes and documentation live on the **host**, not in attack environments.
+
+---
+
+## 3. PowerShell Profile & Custom Prompt (Generic Paths)
+
+On modern Windows, the standard PowerShell profile path looks like:
+
+```text
+C:\Users\<USER>\Documents\PowerShell\Microsoft.PowerShell_profile.ps1
+```
+
+Use a clean, informative prompt that shows:
+
+- `user@host`
+- A timestamp
+- The working directory (with `$HOME` shown as `~`)
 
 Example:
 
-```
-Felix@FULCRO [11:42] ~\workspace\repos\DonTrabajoGPT (main)
+```text
+user@WORKSTATION [11:42] ~\workspace\repos\proxoffensive-ai-multiagent-lab
 >
 ```
 
-This profile loads automatically when launching the “DonT'sWorkspace” shortcut.
+This gives you immediate awareness of user, host, time, and context.
 
 ---
 
-## DonT’sWorkspace Shortcut  
-A Windows shortcut was created that opens PowerShell directly inside:
+## 4. “Workspace” Shortcut (Generic)
 
-```
-C:\Users\Felix\workspace
+Create a Windows shortcut (e.g., on the Desktop or Start Menu) that:
+
+- Launches PowerShell
+- Starts in your workspace directory
+
+Shortcut **Target** example:
+
+```text
+powershell.exe -NoLogo -NoExit -Command "Set-Location 'C:\workspace'"
 ```
 
-This creates a stable, frictionless launch point for all host-side operations.
+This enforces a consistent starting point and avoids exposing your real user profile path in public docs or screenshots.
 
 ---
 
-## Git Repository Organization  
-All project repositories were consolidated under:
+## 5. Local AI (Ollama) on the Host
 
-```
-C:\Users\Felix\workspace\repos
-```
+Ollama can be used for private, offline‑friendly reasoning on the host:
 
-Repos include:
-
-- DonTrabajoGPT  
-- ReconOps Prox  
-- Recon Toolkit  
-- Prox Offensive site  
-
----
-
-## Local AI Integration (Ollama)
-
-Ollama was installed using:
-
-```
-winget install Ollama.Ollama
+```bash
+ollama pull llama3.1
 ollama run llama3.1
 ```
 
-This enables:
+Common use cases:
 
-- Offline reasoning  
-- Code planning  
-- Loot summarization  
-- Privacy-first analysis  
+- Pre‑lab planning (enumeration strategy, threat modeling)
+- Enumeration logic and decision trees
+- Post‑loot analysis and hypothesis testing
+- Code architecture and refactoring ideas
 
-No API keys are required.
-
----
-
-## Python (User-Scoped Installation)
-
-A clean user-level Python installation was configured via:
-
-```
-winget install Python.Python.3.12
-```
-
-This prevents access errors and ensures `pip install --user` works reliably.
-
-Gemini SDK + OpenAI SDK were installed in user mode:
-
-```
-python -m pip install --user google-generativeai
-python -m pip install --user openai
-```
+Because everything runs locally, no sensitive data leaves your machine unless you explicitly send it to a cloud model.
 
 ---
 
-## Shared Loot Folder (Kali ↔ Host)
+## 6. Shared Loot Folder: Kali ↔ Host (Generic)
 
-A shared folder was created on the host:
+Designate a **shared loot folder** on the host:
 
-```
-C:\Users\Felix\workspace\loot
-```
-
-Then mounted inside Kali using:
-
-```
-vmware-hgfsclient
-sudo mkdir -p /mnt/hgfs
-sudo mount -t fuse.vmhgfs-fuse .host:/ /mnt/hgfs -o allow_other
-ls /mnt/hgfs/loot
+```text
+C:\workspace\loot
 ```
 
-This allows loot and logs to flow seamlessly back to the host for analysis.
+In VMware (or a similar hypervisor), configure this folder as a shared directory and mount it inside Kali, for example:
+
+```bash
+# Inside Kali
+sudo mkdir -p /mnt/shared
+sudo mount -t fuse.vmhgfs-fuse .host:/ /mnt/shared -o allow_other
+ls /mnt/shared
+```
+
+Typical usage from Kali to Host:
+
+```bash
+./linpeas.sh > /mnt/shared/linpeas_targetA.txt
+nmap -A 10.10.10.10 -oN /mnt/shared/nmap_targetA.txt
+cp ~/Pictures/screenshot.png /mnt/shared/
+```
+
+Principles:
+
+- **Never** store loot permanently in Kali.
+- The host is the archive; the VM is disposable.
 
 ---
 
-## Host ↔ Kali Workflow Summary
+## 7. Host ↔ Kali Workflow Summary
 
-1. Launch DonT’sWorkspace  
-2. Use local AI to plan enumeration or exploitation  
-3. Execute tasks inside Kali  
-4. Export loot to `/mnt/hgfs/loot`  
-5. Analyze on host using AI + scripts  
-6. Write documentation + commit changes to repos  
+1. Launch the **Workspace** shortcut on the host.
+2. Use local or cloud AI on the host for planning.
+3. Execute scans/exploits/tunnels in **Kali**.
+4. Export loot to `/mnt/shared/` (host‑mapped folder).
+5. Analyze loot on the **host** using AI + scripts.
+6. Write notes, export docs, and update Git repos from the host.
 
-This creates a stable, repeatable red-team cycle:
+Role mapping:
 
-**Host (Brain) → Kali (Blade) → Host (Book + AI)**
+- **Host = Brain + Archive**
+- **Kali = Blade**
+- **Repos = Book**
 
 ---
 
-## Status  
-The orchestration layer is now fully operational and ready for:
+## 8. LLM Role Assignment (Public‑Safe)
 
-- ReconOps Prox development  
-- DonTrabajoGPT enhancements  
-- Lab writeups  
-- Red-team automation  
+You can assign roles to different LLMs in a way that’s safe to publish:
+
+- **GPT (web/CLI)** – deep reasoning, exploit logic, complex multi‑step planning, business copy, long‑form synthesis.
+- **Claude (web/CLI)** – large‑context planning, documentation, refactors, and writeups.
+- **Gemini** – technical cross‑checks, quick comparisons, and validation.
+- **Local LLMs (OSS models, DeepSeek, gpt‑oss‑20b, etc.)** – private synthesis and no‑cloud summaries.
+- **Duck.ai (reviewer)** – ensemble checks, multi‑view debugging, sanity checks.
+- **Atlas Browser** – safe research, knowledge distillation, and “containment zone” for web context.
+
+No machine names, usernames, or secrets need to be mentioned when describing this in public.
+
+---
+
+## 9. Operational Philosophy (Public)
+
+**Tools in orbit. Precision at the core.**
+
+- The host is the stable brain.
+- The Kali VM is the isolation layer and blade.
+- A laptop or secondary machine can be the mobility + creative layer.
+- LLMs are advisors, not authorities.
+- Important reasoning is cross‑checked across models.
+- Attack environments remain isolated from creative/personal environments.
+- Stability, reproducibility, and clarity trump short‑term hacks.
+
+This version of the document is safe to link on GitHub, LinkedIn, and portfolio sites.
