@@ -1,62 +1,219 @@
-# codex_quickstart.md - Prox Offensive AI Multi-Agent Lab
+# Codex Quickstart (Public / OPSEC-Safe Version)
+**For the Prox Offensive AI Multi-Agent Lab**  
+*How to use gpt-5.1-codex-max effectively inside this repo.*
 
-## Purpose
-Concise onboarding for working in this repo with OPSEC-safe defaults. Pairs with `codex.md` (behavioral rules) and `docs/host_cli_setup.md` (host setup).
+---
 
-## Audience
-- Contributors using the host as the orchestration brain and Kali (or similar) as the execution blade.
-- Anyone needing a public-safe, high-level setup and workflow checklist.
+## 1. Purpose
 
-## TL;DR Workflow
-1) Host = Brain + Archive; Kali = Blade; Repos = Book. Keep loot on host. 
-2) Work out of the workspace root (example: `C:\workspace`).
-3) Plan on host with local/cloud LLMs. Execute scans/exploits in Kali. Bring loot back to the host shared folder. 
-4) Commit code/docs from the host. Keep OPSEC clean (no real usernames/paths/keys).
+Codex is the primary **repo-native AI assistant** in the Prox Offensive Multi-Agent Lab.
 
-## Host Setup (Public-Safe)
-- **Workspace directory**: create `C:\workspace` (or similar) with `repos/`, `loot/`, `notes/`, `docs/`, `scripts/`.
-- **PowerShell profile**: use `Microsoft.PowerShell_profile.ps1` under your Documents/PowerShell path; prompt should show `user@host`, timestamp, cwd (see `docs/host_cli_setup.md`).
-- **Workspace shortcut**: target `powershell.exe -NoLogo -NoExit -Command "Set-Location 'C:\workspace'"`.
-- **Local AI (optional)**: `ollama pull llama3.1 && ollama run llama3.1`.
-- **Python (user install)**: `winget install Python.Python.3.12` then use `python -m pip install --user <pkg>`.
+It is designed for:
 
-## Repo Checkout
-```pwsh
-cd C:\workspace\repos
-git clone https://github.com/DonTrabajo/ProxOffensive-AI-MultiAgent-Lab.git
-cd ProxOffensive-AI-MultiAgent-Lab
-```
+- Editing project files  
+- Maintaining documentation  
+- Creating public/internal doc splits  
+- Refactoring content  
+- Managing branches & commits  
+- Understanding the structure of this repo  
+- Supporting DonTrabajoGPT + ReconOps Prox development  
 
-## Shared Loot Folder (Host <-> Kali)
-- Host path example: `C:\workspace\loot`
-- Mount in Kali (VMware example):
+Codex runs directly inside your project folder and always loads your local `codex.md` instructions automatically.
+
+**Think of it as:**  
+- ChatGPT -> Strategic Advisor  
+- Codex -> Hands-on Engineer inside the repo  
+
+---
+
+## 2. Launching Codex
+
+From your host machine, navigate to the repo:
+
 ```bash
-sudo mkdir -p /mnt/shared
-sudo mount -t fuse.vmhgfs-fuse .host:/ /mnt/shared -o allow_other
-ls /mnt/shared
+cd ~/workspace/repos/ProxOffensive-AI-MultiAgent-Lab
 ```
-- Usage examples from Kali:
+
+Then run:
+
 ```bash
-./linpeas.sh > /mnt/shared/linpeas_targetA.txt
-nmap -A 10.10.10.10 -oN /mnt/shared/nmap_targetA.txt
-cp ~/Pictures/screenshot.png /mnt/shared/
+codex
 ```
-- Principles: never park loot in Kali; host is the archive.
 
-## Daily Flow
-- **Plan** on host (LLMs, notes). 
-- **Run** in Kali (scans, exploits, tunnels). 
-- **Return** loot to `/mnt/shared/` on host. 
-- **Analyze** on host (scripts, LLM synthesis, docs). 
-- **Commit** from host (docs, code, notes where appropriate).
+Codex will ask to access the directory (only once).  
+Select **Yes** - this gives Codex visibility into the repo structure.
 
-## OPSEC Reminders
-- Use generic paths/hosts in public docs: `C:\workspace`, `WORKSTATION`, `KALI-VM`.
-- Do not commit secrets, tokens, passwords, or real IPs/domains.
-- Split public vs internal content when needed (`docs/public/` vs `docs/internal/`).
-- If unsure, sanitize and ask before publishing.
+You'll now see a Codex terminal UI with:
 
-## Helpful References
-- `codex.md` (behavior + writing rules)
-- `docs/host_cli_setup.md` (public-safe host setup)
-- `docs/init*.md` files (architecture and workflow snapshots)
+- Loaded project instructions from `codex.md`  
+- Open files  
+- Repo metadata  
+- Context summary  
+
+---
+
+## 3. Core Commands
+
+### **Open a file**
+
+```
+open docs/host_cli_setup.md
+```
+
+### **Edit with natural language**
+
+```
+Rewrite this file with improved structure. Keep it OPSEC-safe.
+```
+
+### **Create a new file**
+
+```
+Create a new file at docs/public/host_cli_architecture.md 
+with a high-level overview of the host AI role.
+```
+
+### **Search the repo**
+
+```
+Search for any identifying information in /docs.
+```
+
+### **Propose a commit**
+
+```
+Propose a git commit for all modified docs.
+```
+
+Then:
+
+```
+commit
+push
+```
+
+---
+
+## 4. Public vs Internal Docs (Codex Workflow)
+
+Codex understands the repo's **two-tier documentation model**:
+
+### Public docs
+- Stored in `docs/public/` or `docs/`
+- OPSEC-safe  
+- High-level workflows, sanitized examples  
+
+### Internal docs
+- Stored in `docs/internal/`  
+- More detailed  
+- Must avoid secrets or IRL-sensitive data  
+
+### Generate both versions automatically
+
+```
+Read docs/host_cli_setup.md and generate:
+
+1. A public OPSEC-safe version in docs/public/host_cli_setup.md
+2. An internal version in docs/internal/host_cli_setup.md
+```
+
+Codex will draft both, show diffs, and prepare commits.
+
+---
+
+## 5. Using Codex With Other Tools
+
+The project uses a **multi-LLM orchestration model**:
+
+- **Codex** -> Repo editor, file operations, commits  
+- **Claude CLI** -> Brutal critic, long-context editor  
+- **Gemini CLI** -> Research, comparison, cross-checking  
+- **Local LLMs (via Ollama)** -> Offline analysis  
+
+Workflow example:
+
+```
+Gemini -> gather info
+Claude -> refine/write-up
+Codex -> integrate into repo + commit
+ChatGPT -> strategic design and planning
+```
+
+Codex is the **"write it to disk"** AI.
+
+---
+
+## 6. Common Tasks Codex Excels At
+
+### A. OPSEC cleanup  
+```
+Review docs/ for real identifiers. Suggest replacements.
+```
+
+### B. Normalize documentation  
+```
+Normalize the tone of all host CLI docs using host_cli_orchestration_public.md as a template.
+```
+
+### C. Update architecture  
+```
+Update init.md to reflect current repo workflows.
+```
+
+### D. Draft new modules  
+```
+Create docs/public/reconops_overview.md with a high-level ReconOps Prox description.
+```
+
+### E. Summaries  
+```
+Summarize this Codex session and update session notes.
+```
+
+---
+
+## 7. Best Practices
+
+- Use **small frequent commits**.  
+- Keep `/docs` as the truth source.  
+- Split public/internal early.  
+- Ask Codex to **scan before writing**.  
+- Use second-pass refinement.  
+
+---
+
+## 8. Starter Prompt
+
+```
+You are Codex working inside the Prox Offensive AI Multi-Agent Lab.
+
+Follow codex.md.  
+Help maintain OPSEC-safe documentation, create public/internal splits, update /init files,  
+and organize the repo structure.
+
+Begin by scanning /docs and telling me what needs improvement.
+```
+
+---
+
+## 9. ChatGPT vs Codex
+
+**ChatGPT** -> design, strategy, architecture, writing  
+**Codex** -> repo editing, commits, structure, sanitation  
+Together they form the backbone of the **Don Trabajo Super Stack**.
+
+---
+
+## 10. Final Notes
+
+Codex behaves like a **long-term repo collaborator**, using `codex.md` as its guiding brain.
+
+It:
+
+- Knows the lab's structure  
+- Edits files safely  
+- Maintains OPSEC  
+- Proposes commits  
+- Supports multi-agent development  
+
+Treat it as a core tool in your Host AI layer.
