@@ -1,96 +1,180 @@
-# Repo Architecture Map (Public/OPSEC-Safe)
-**Project:** Prox Offensive AI Multi-Agent Lab
-**Audience:** ChatGPT 5.1 (web) and other LLMs needing a quick mental model of this repo.
+# Repo Architecture Map (Public / OPSEC-Safe)
+**Project:** Prox Offensive AI Multi-Agent Lab  
+**Audience:** ChatGPT 5.1, Codex, Claude, Gemini, and other LLMs needing an instant mental model of this repository.
+
+This map defines the directory structure, generational split, documentation philosophy, and the authoritative source-of-truth files for all agents.
 
 ---
 
-## 1) Quick Purpose
-- Provide a single, shareable summary of how the repo is organized (Gen 1 + Gen 2).
-- Point to the canonical docs for host CLI, init files, and the local-first mesh (Option B).
-- Keep paths generic and OPSEC-safe.
+# 1) Purpose
+- Provide a unified overview of the repo for both **Gen 1 (cloud-augmented)** and **Gen 2 (local-first mesh)**.
+- Point LLMs and agents to the correct documents and entry points.
+- Maintain OPSEC-safe navigation instructions.
+- Establish where public vs internal documentation belongs.
 
 ---
 
-## 2) Top-Level Layout
-- `README.md` — brief landing page for the lab.
-- `AI_MultiAgent_RedTeam_Blueprint.md` — early blueprint for multi-agent red/blue concepts.
-- `codex.md` — house rules for Codex (repo-native assistant).
-- `MultiAgentLab_NextGenMesh_Summary.md` — status of the local-first next-gen mesh (Option B).
-- `docs/` — core documentation (host CLI, architecture, model roles, init anchors).
-- `nextgen-mesh/` — next-gen local-first mesh subtree (Option B) with its own docs and subfolders.
-- `social/` — LinkedIn draft posts (public comms).
+# 2) Top-Level Layout
+
+```
+ProxOffensive-AI-MultiAgent-Lab/
+│
+├── README.md
+├── AI_MultiAgent_RedTeam_Blueprint.md
+├── MultiAgentLab_NextGenMesh_Summary.md
+│
+├── codex.md
+├── claude.md
+├── gemini.md
+├── agents.md
+│
+├── docs/
+│   ├── README.md / index.md
+│   ├── project_brain.md
+│   ├── system_architecture.md
+│   ├── model_roles.md
+│   ├── host_cli_setup.md
+│   ├── host_cli_orchestration.md
+│   ├── codex_quickstart.md
+│   └── init/
+│       ├── init_host_cli.md
+│       └── slingshot_kali_init.md
+│
+├── nextgen-mesh/
+│   ├── ProxOffensive-LocalMesh/
+│   │   ├── README.md
+│   │   ├── init.md
+│   │   ├── agents/
+│   │   ├── atlas/
+│   │   ├── cli/
+│   │   ├── duck/
+│   │   ├── kali/
+│   │   ├── local-llm/
+│   │   └── slingshot/
+│   │
+│   └── docs/nextgen/
+│       ├── workflow_overview.md
+│       ├── local_llm_setup.md
+│       ├── cli_tools.md
+│       ├── atlas_lane.md
+│       └── duck_reviewer_loop.md
+│
+└── social/
+    ├── linkedin_host_cli_business.txt
+    └── linkedin_host_cli_personal.txt
+```
 
 ---
 
-## 3) Generations (Two-Track Model)
-- **Gen 1 (Classic lab):** Cloud-augmented, local-aware multi-agent workflow. Core docs live in `docs/` (system architecture, host orchestration, model roles).
-- **Gen 2 (Option B, local-first):** Local-first, CLI-first mesh with Slingshot + Kali separation and richer local LLM routing. Lives under `nextgen-mesh/ProxOffensive-LocalMesh/` plus `nextgen-mesh/docs/nextgen/`.
+# 3) Generations (Two-Track Model)
+
+### **Gen 1 — Classic Lab (Cloud-Augmented)**
+- Lives under `docs/`
+- Uses ChatGPT web, Claude web, Gemini web
+- Host = brain  
+- Kali = blade  
+- Mac = mobile  
+- Documentation-first, cloud-aware, operator-driven
+
+### **Gen 2 — Local-First Mesh (Option B)**
+- Lives under `nextgen-mesh/`
+- CLI-first workflow (Claude CLI, Gemini CLI, Codex, OpenCode, local models)
+- Slingshot + Kali separation
+- Local LLM clusters + routing lanes
+- Multi-agent mesh structure (prox_mesh orchestrator)
+
+Both generations share the same **canonical brain**:
+`docs/project_brain.md`.
 
 ---
 
-## 4) Core Docs (Gen 1) — `docs/`
-- `README.md` and `index.md` — navigation/landing for docs.
-- `system_architecture.md` — overall system view.
-- `model_roles.md` — LLM role definitions and typical usage split.
-- `host_cli_orchestration.md` — host-side orchestration guidance (OPSEC-safe public view).
-- `host_cli_setup.md` — public-safe host CLI setup (workspace layout, prompt, shortcut, loot share).
-- `codex_quickstart.md` — how to use Codex (repo-native agent) safely and effectively.
-- `init/`
-  - `init_host_cli.md` — /init anchor for host CLI behavior.
-  - `slingshot_kali_init.md` — /init anchor for Slingshot + Kali split and rationale.
+# 4) Core Docs (Gen 1) — `docs/`
+
+- **project_brain.md** ← *Source of Truth for everything*
+- system_architecture.md
+- model_roles.md
+- host_cli_setup.md
+- host_cli_orchestration.md
+- codex_quickstart.md  
+- `/init` directory for persistent initialization anchors
+
+These are **public-safe**, with internal-depth versions planned for `/docs/internal/`.
 
 ---
 
-## 5) Next-Gen Mesh (Option B) — `nextgen-mesh/`
-- `ProxOffensive-LocalMesh/` (working subtree)
-  - `README.md` — describes the local-first cyber mesh concept.
-  - `init.md` — /init anchor for Option B architecture.
-  - `agents/` — placeholders for orchestrators (planned: `prox_mesh.py`).
-  - `atlas/` — Atlas lane docs/patterns (redacted research lane).
-  - `cli/` — CLI wrappers and profile snippets (planned `gpt`, `cld`, `gem`, `loc` helpers).
-  - `duck/` — reviewer loop patterns (multi-model ensemble triggers).
-  - `kali/` — Kali blade configuration (future).
-  - `local-llm/` — local LLM cluster configs/scripts (future start/stop, defaults).
-  - `slingshot/` — Slingshot integration templates and engagement layout (future).
-- `docs/nextgen/`
-  - `workflow_overview.md` — full Option B workflow view.
-  - `local_llm_setup.md` — hardware lanes and local LLM roles/setup.
-  - `cli_tools.md` — CLI-first philosophy across GPT/Claude/Gemini/local.
-  - `atlas_lane.md` — Atlas as safe research lane with Gemini integration.
-  - `duck_reviewer_loop.md` — reviewer ensemble patterns.
+# 5) Next-Gen Mesh (Gen 2 / Option B) — `nextgen-mesh/`
+
+This subtree defines the **local-first operational mesh**, including:
+
+- Local model routing  
+- Terminal-first AI workflows  
+- Slingshot engagement folder structure  
+- CLI helpers (`gpt`, `cld`, `gem`, `loc`)  
+- Reviewer loops (duck)  
+- Atlas lane separation  
+- Local-LLM cluster configuration
 
 ---
 
-## 6) Social — `social/`
-- `linkedin_host_cli_business.txt`, `linkedin_host_cli_personal.txt` — public-facing LinkedIn drafts about the host CLI/AI orchestration.
+# 6) Social (`/social/`)
+Public LinkedIn-style posts about:
+- Host CLI optimization  
+- AI stack workflows  
+- Productivity & tooling  
+
+Safe for public communication.
 
 ---
 
-## 7) How to Use This Map with ChatGPT (Web)
-- Share this file directly to give ChatGPT context on where to read/write.
-- When asking for edits, specify exact paths (e.g., `docs/host_cli_setup.md` or `nextgen-mesh/ProxOffensive-LocalMesh/agents/prox_mesh.py`).
-- For public vs internal splits: keep public content in `docs/` or `docs/public/` (if added later) and internal depth in `docs/internal/` (future pattern) or the next-gen subtree as appropriate.
-- OPSEC guardrails: avoid real usernames/hosts/IPs/keys; favor generic paths like `C:\workspace` or `~/workspace`.
+# 7) How to Use This Map with ChatGPT or Codex
+
+### When editing files:
+Specify exact paths.
+
+### When generating new docs:
+- Put **public-safe** docs into `docs/`
+- Put **internal-depth** docs into `docs/internal/`
+- Put **Option B** docs into `nextgen-mesh/docs/nextgen/`
+
+### When using agents:
+- Codex reads `codex.md`
+- Claude reads `claude.md`
+- Gemini reads `gemini.md`
+- All agents read `docs/project_brain.md`
 
 ---
 
-## 8) Near-Term Focus (from summary)
-- Build `prox-mesh` CLI v0 (routing stub) under `nextgen-mesh/ProxOffensive-LocalMesh/agents/`.
-- Flesh out Slingshot engagement structure under `nextgen-mesh/ProxOffensive-LocalMesh/slingshot/`.
-- Add minimal local-LLM launcher scripts/configs under `nextgen-mesh/ProxOffensive-LocalMesh/local-llm/`.
+# 8) Near-Term Focus
+
+- Build the **prox-mesh CLI v0**
+- Flesh out **Slingshot engagement structure**
+- Add local LLM launcher scripts
+- Integrate **ReconOps Prox** as first agent
 
 ---
 
-## 9) Source of Truth Files to Consult First
-- `codex.md`, `codex_quickstart.md` — how to collaborate with repo-native Codex and style/behavior rules.
-- `docs/system_architecture.md` — Gen 1 architecture.
-- `docs/host_cli_setup.md` and `docs/init/init_host_cli.md` — host workspace and /init anchor.
-- `MultiAgentLab_NextGenMesh_Summary.md` — current next-gen mesh status and next steps.
-- `nextgen-mesh/docs/nextgen/workflow_overview.md` — Option B workflow reference.
+# 9) Source of Truth Files
+
+1. `docs/project_brain.md`
+2. `codex.md`, `claude.md`, `gemini.md`, `agents.md`
+3. `Repo_Architecture_Map.md`
+4. `docs/system_architecture.md`
+5. `docs/model_roles.md`
+6. `docs/init/init_host_cli.md`, `slingshot_kali_init.md`
+7. `Multi_Agent_Lab_Session_Summary.md`
+8. `MultiAgentLab_NextGenMesh_Summary.md`
+9. `nextgen-mesh/docs/nextgen/workflow_overview.md`
 
 ---
 
-## 10) OPSEC Reminder
-- Do not introduce secrets, real hostnames, or identifying IPs/domains.
-- Prefer generic paths (`C:\workspace`, `~/workspace/repos`).
-- Keep public/shared docs sanitized; deeper details belong in clearly marked internal or next-gen subtrees.
+# 10) OPSEC Reminder
+
+- No secrets, keys, flags, or identifying data.
+- Avoid home IPs, usernames, hostnames.
+- Prefer generic paths.
+- Public docs go in `docs/`.
+- Internal depth in `docs/internal/` or next-gen subtree.
+
+---
+
+# End of Repo Architecture Map (v2.0)
