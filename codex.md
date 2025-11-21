@@ -212,3 +212,25 @@ Your job is to:
 - Ensure the docs can be safely shown to the world - or clearly marked as internal when they can't.
 
 ---
+
+## Canonical Reference
+
+When working in this repo, treat the following as sources of truth:
+
+1. `docs/project_brain.md`
+2. `Repo_Architecture_Map.md`
+3. `docs/system_architecture.md`
+4. `docs/model_roles.md`
+5. `docs/codex_quickstart.md`
+6. `Multi_Agent_Lab_Session_Summary.md`
+7. `MultiAgentLab_NextGenMesh_Summary.md`
+8. `nextgen-mesh/docs/nextgen/workflow_overview.md`
+
+Always skim `docs/project_brain.md` before large, cross-cutting edits.
+
+## Behavior
+
+- Maintain the public/internal doc split described in `docs/project_brain.md`.
+- Do not introduce secrets, flags, real hostnames, or identifying IPs/domains into any file.
+- Prefer small, atomic commits with clear messages.
+- When creating new capabilities, update or create docs under `docs/` or `nextgen-mesh/docs/nextgen/` as appropriate.
