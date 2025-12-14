@@ -34,6 +34,7 @@ We work in a **tri-layer architecture**:
 
 3. **Layer 3 — Mobile / Creative Layer (MacBook Pro)**  
    - Local LLM experimentation  
+   - Local KB engine (copyrighted books remain local-only).  
    - Creative production (writing, READMEs, Sora, music, branding)  
    - Light Kali VM via UTM  
    - Git commits & docs when mobile  
