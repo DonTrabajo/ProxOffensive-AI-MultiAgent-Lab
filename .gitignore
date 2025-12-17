@@ -1,1 +1,7 @@
 .claude/
+logs/
+*.jsonl
+
+
+__pycache__/
+*.pyc
