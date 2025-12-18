@@ -76,7 +76,8 @@ DEFAULT_CMDS = {
 
 # Windows-side KB command (default: Python wrapper in ~/bin)
 # Must be a list of argv tokens (no embedded quotes)
-DEFAULT_KB_CMD: list[str] = ["python", r"C:\Users\Felix\bin\kb_ask.py", "--raw"]
+KB_WRAPPER_PATH = REPO_ROOT / "nextgen-mesh" / "ProxOffensive-LocalMesh" / "tools" / "kb_ask.py"
+DEFAULT_KB_CMD: list[str] = ["python", str(KB_WRAPPER_PATH), "--raw"]
 DEFAULT_KB_LOG = Path(
     os.getenv("PROXMESH_KB_LOG", REPO_ROOT / "logs" / "kb_queries.jsonl")
 )
@@ -146,7 +147,7 @@ def read_file_if_exists(path: Path) -> str:
     return ""
 
 
-def read_prompt(args: argparse.Namespace) -> str:
+def read_prompt(args: argparse.Namespace, *, allow_stdin: bool = True) -> str:
     """
     Determine the prompt text from:
     - --file
@@ -170,7 +171,7 @@ def read_prompt(args: argparse.Namespace) -> str:
             return content
 
     # 3) Prompt from stdin (if piped)
-    if not sys.stdin.isatty():
+    if allow_stdin and not sys.stdin.isatty():
         content = sys.stdin.read().strip()
         if content:
             return content
@@ -180,6 +181,23 @@ def read_prompt(args: argparse.Namespace) -> str:
         file=sys.stderr,
     )
     sys.exit(1)
+
+
+_PATH_REDACTIONS = [
+    r"[A-Za-z]:\\\\[^\\s\"']+",
+    r"[A-Za-z]:/[^\\s\"']+",
+    r"/Users/[^\\s\"']+",
+    r"/home/[^\\s\"']+",
+]
+
+
+def _redact_paths(text: str | None) -> str | None:
+    if not text:
+        return text
+    redacted = text
+    for pat in _PATH_REDACTIONS:
+        redacted = re.sub(pat, "[REDACTED-PATH]", redacted)
+    return redacted
 
 
 def build_combined_prompt(route: str, base_tool: str, user_prompt: str,
@@ -927,6 +945,680 @@ def write_plan_kb_log(plan_payload: dict, log_path: Path) -> None:
         handle.write("\n")
 
 
+def default_prompt_kb_log_path() -> Path:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%SZ")
+    return REPO_ROOT / "logs" / f"prompt_kb_{stamp}.json"
+
+
+def _drop_flag_with_value(parts: list[str], flag: str) -> list[str]:
+    cleaned: list[str] = []
+    skip_next = False
+    for token in parts:
+        if skip_next:
+            skip_next = False
+            continue
+        if token == flag:
+            skip_next = True
+            continue
+        cleaned.append(token)
+    return cleaned
+
+
+def build_prompt_kb_cmd_parts(
+    *,
+    query: str,
+    host: str | None,
+    sources: str | None,
+    limit: int | None,
+    max_hints: int | None,
+    hint_length: int | None,
+    brief_length: int | None,
+    no_llm: bool,
+) -> list[str]:
+    cmd_parts = get_kb_cmd()
+
+    if host:
+        cmd_parts.extend(["--host", host])
+
+    if "--raw" not in cmd_parts:
+        cmd_parts.append("--raw")
+
+    cmd_parts = _drop_flag_with_value(cmd_parts, "--brief")
+    cmd_parts.extend(["--brief", "cloud"])
+
+    if sources:
+        cmd_parts = _drop_flag_with_value(cmd_parts, "--sources")
+        cmd_parts.extend(["--sources", sources])
+    if limit is not None:
+        cmd_parts = _drop_flag_with_value(cmd_parts, "--limit")
+        cmd_parts.extend(["--limit", str(limit)])
+    if max_hints is not None:
+        cmd_parts = _drop_flag_with_value(cmd_parts, "--max-hints")
+        cmd_parts.extend(["--max-hints", str(max_hints)])
+    if hint_length is not None:
+        cmd_parts = _drop_flag_with_value(cmd_parts, "--hint-length")
+        cmd_parts.extend(["--hint-length", str(hint_length)])
+    if brief_length is not None:
+        cmd_parts = _drop_flag_with_value(cmd_parts, "--brief-length")
+        cmd_parts.extend(["--brief-length", str(brief_length)])
+    if no_llm and "--no-llm" not in cmd_parts:
+        cmd_parts.append("--no-llm")
+
+    cmd_parts.append(query)
+    return cmd_parts
+
+
+def _safe_prompt_hints(hints: object) -> list[dict]:
+    if not isinstance(hints, list):
+        return []
+
+    safe: list[dict] = []
+    for h in hints:
+        if not isinstance(h, dict):
+            continue
+        safe.append(
+            {
+                "source_path": h.get("source_path") or h.get("path"),
+                "title": h.get("title"),
+                "line_number": h.get("line_number") or h.get("line") or h.get("start_line"),
+                "abstractive_hint": h.get("abstractive_hint") or h.get("hint"),
+                "source_type": h.get("source_type") or h.get("collection") or h.get("source"),
+            }
+        )
+    return [h for h in safe if any(v for v in h.values())]
+
+
+def _extract_cloud_pack(payload: object | None) -> tuple[str | None, list[dict], list[str]]:
+    if not isinstance(payload, dict):
+        return None, [], []
+
+    cp = payload.get("cloud_pack")
+    if not isinstance(cp, dict):
+        cp = {}
+
+    brief = cp.get("brief")
+    hints = _safe_prompt_hints(cp.get("hints"))
+
+    followups_raw = cp.get("followup_queries") or []
+    followups = [q for q in followups_raw if isinstance(q, str)]
+
+    return brief, hints, followups
+
+
+def _resolve_cloud_safe(payload: object | None) -> bool | None:
+    if not isinstance(payload, dict):
+        return None
+
+    cloud_pack = payload.get("cloud_pack")
+    if isinstance(cloud_pack, dict):
+        cp_safe = cloud_pack.get("cloud_safe")
+        if cp_safe is not None:
+            return cp_safe
+
+    opsec = payload.get("opsec_flags") or payload.get("opsec") or {}
+    if "cloud_safe" in payload and payload.get("cloud_safe") is not None:
+        return payload.get("cloud_safe")
+    if isinstance(opsec, dict) and opsec.get("cloud_safe") is not None:
+        return opsec.get("cloud_safe")
+
+    return None
+
+
+def _extract_meta_fields(payload: object | None, requested_sources: str | None) -> tuple[int, list[str]]:
+    if not isinstance(payload, dict):
+        return 0, [requested_sources] if requested_sources else []
+
+    meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
+    result_count = meta.get("result_count", 0) if isinstance(meta, dict) else 0
+    sources_raw = meta.get("sources_searched") if isinstance(meta, dict) else []
+
+    sources: list[str] = [s for s in sources_raw or [] if isinstance(s, str)]
+    if not sources and requested_sources:
+        sources = [requested_sources]
+
+    return result_count if isinstance(result_count, int) else 0, sources
+
+
+def _fallback_brief(result_count: int, sources: list[str]) -> str:
+    source_text = ", ".join(sources) if sources else "requested sources"
+    return (
+        f"KB did not return a brief. Found {result_count} result(s) across {source_text}. "
+        "Use metadata-only hints below; do not paste raw snippets."
+    )
+
+
+def _lab_pack_default_log_path() -> Path:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%SZ")
+    return REPO_ROOT / "logs" / f"lab_pack_{stamp}.json"
+
+
+def format_prompt_kb_human(
+    *,
+    cloud_safe: bool | None,
+    brief: str | None,
+    hints: list[dict],
+    followups: list[str],
+    kb_query: str,
+    objective: str,
+    result_count: int,
+    sources: list[str],
+) -> str:
+    banner = "CLOUD-SAFE: UNKNOWN"
+    if cloud_safe is True:
+        banner = "CLOUD-SAFE: YES"
+    elif cloud_safe is False:
+        banner = "CLOUD-SAFE: NO"
+
+    lines: list[str] = []
+    lines.append(banner)
+    lines.append(f"Objective: {objective.strip()}")
+    lines.append(f"KB query: {kb_query.strip()}")
+    if result_count or sources:
+        source_text = ", ".join(sources) if sources else "unspecified sources"
+        lines.append(f"Results: {result_count} across {source_text}")
+    lines.append("")
+
+    if brief:
+        lines.append("PASTE INTO CLOUD MODEL:")
+        lines.append(brief.strip())
+        lines.append("")
+
+    lines.append("Hints (metadata only):")
+    if hints:
+        for idx, h in enumerate(hints, start=1):
+            parts: list[str] = []
+            if h.get("source_path"):
+                parts.append(str(h["source_path"]))
+            if h.get("line_number"):
+                parts.append(f"line {h['line_number']}")
+            if h.get("title"):
+                parts.append(h["title"])
+            if h.get("source_type"):
+                parts.append(f"[{h['source_type']}]")
+            header = " - ".join(part for part in parts if part)
+            lines.append(f"[{idx}] {header}".strip())
+            if h.get("abstractive_hint"):
+                lines.append(f"    {h['abstractive_hint']}")
+    else:
+        lines.append("  (none)")
+
+    lines.append("")
+    lines.append("Followup queries:")
+    if followups:
+        for fq in followups:
+            lines.append(f" - {fq}")
+    else:
+        lines.append("  (none)")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_prompt_kb_log(payload: dict, log_path: Path) -> None:
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=False)
+        handle.write("\n")
+
+
+def run_prompt_kb(
+    *,
+    objective: str,
+    kb_query_override: str | None,
+    host: str | None,
+    sources: str | None,
+    limit: int | None,
+    max_hints: int | None,
+    hint_length: int | None,
+    brief_length: int | None,
+    no_llm: bool,
+    dry_run: bool,
+    json_only: bool,
+    log_path_str: str | None,
+) -> int:
+    if kb_query_override:
+        kb_query = kb_query_override.strip()
+        extraction_meta = {"matched_keywords": [], "override": True}
+    else:
+        kb_query, extraction_meta = extract_kb_query_v0(objective)
+        extraction_meta["override"] = False
+
+    cmd_parts = build_prompt_kb_cmd_parts(
+        query=kb_query,
+        host=host,
+        sources=sources,
+        limit=limit,
+        max_hints=max_hints,
+        hint_length=hint_length,
+        brief_length=brief_length,
+        no_llm=no_llm,
+    )
+
+    log_path = (
+        _resolve_repo_relative_path(log_path_str)
+        if log_path_str
+        else default_prompt_kb_log_path()
+    )
+
+    if dry_run:
+        print("[prox-mesh] (dry-run) Would run KB command:\n  " + " ".join(cmd_parts))
+        print(f"[prox-mesh] (dry-run) Would write prompt log to:\n  {log_path}")
+        return 0
+
+    base_prog = cmd_parts[0]
+    if not tool_is_available(base_prog):
+        print(
+            "[prox-mesh] KB tool not found. "
+            f"Expected base command on PATH: {base_prog}\n"
+            "  Fix: install kb_ask wrapper or set PROXMESH_KB_CMD.",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        proc = subprocess.run(
+            cmd_parts,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+    except Exception as exc:
+        print(f"[prox-mesh] Error executing KB command: {exc}", file=sys.stderr)
+        return 1
+
+    stdout_text = proc.stdout or ""
+    error = None
+    payload: object | None = None
+    try:
+        payload = _parse_json_from_stdout(stdout_text)
+    except Exception as exc:
+        error = f"KB JSON parse failed: {exc}"
+
+    sanitized_payload = _strip_snippets(payload) if payload is not None else None
+    result_count, meta_sources = _extract_meta_fields(sanitized_payload, sources)
+
+    cloud_safe = _resolve_cloud_safe(sanitized_payload)
+    if cloud_safe is None:
+        cloud_safe, _local_reason = _extract_opsec_flags(sanitized_payload)
+
+    brief, hints, followups = _extract_cloud_pack(sanitized_payload)
+    brief = brief or _fallback_brief(result_count, meta_sources)
+
+    log_payload = {
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "route": "prompt-kb",
+        "objective": objective,
+        "kb_query": kb_query,
+        "extraction": extraction_meta,
+        "cloud_safe": cloud_safe,
+        "kb_cmd": cmd_parts,
+        "kb_returncode": proc.returncode,
+        "error": error,
+        "meta": {
+            "result_count": result_count,
+            "sources_searched": meta_sources,
+        },
+        "cloud_pack": {
+            "brief": brief,
+            "hints": hints,
+            "followup_queries": followups,
+        },
+        "kb_payload": sanitized_payload,
+    }
+
+    try:
+        write_prompt_kb_log(log_payload, log_path)
+    except OSError as exc:
+        print(f"[prox-mesh] Warning: could not write prompt KB log to {log_path}: {exc}", file=sys.stderr)
+
+    if json_only:
+        safe_out = {
+            "cloud_safe": cloud_safe,
+            "brief": brief,
+            "hints": hints,
+            "followup_queries": followups,
+            "kb_query": kb_query,
+            "objective": objective,
+            "result_count": result_count,
+            "sources": meta_sources,
+            "error": error,
+        }
+        print(json.dumps(safe_out, indent=2, sort_keys=False))
+        return proc.returncode if proc.returncode != 0 else (1 if error else 0)
+
+    sys.stdout.write(
+        format_prompt_kb_human(
+            cloud_safe=cloud_safe,
+            brief=brief,
+            hints=hints,
+            followups=followups,
+            kb_query=kb_query,
+            objective=objective,
+            result_count=result_count,
+            sources=meta_sources,
+        )
+    )
+
+    if error:
+        print(f"[prox-mesh] Warning: {error}", file=sys.stderr)
+
+    return proc.returncode if proc.returncode != 0 else (1 if error else 0)
+
+
+def _lab_pack_hints(hints_obj: object) -> list[dict]:
+    if not isinstance(hints_obj, list):
+        return []
+
+    hints: list[dict] = []
+    for h in hints_obj:
+        if not isinstance(h, dict):
+            continue
+        hints.append(
+            {
+                "source_path": h.get("source_path") or h.get("path"),
+                "line_number": h.get("line_number") or h.get("line") or h.get("start_line"),
+                "source_type": h.get("source_type") or h.get("collection") or h.get("source"),
+                "abstractive_hint": h.get("abstractive_hint") or h.get("hint"),
+            }
+        )
+    return [hint for hint in hints if any(v for v in hint.values())]
+
+
+def _extract_lab_pack_fields(payload: object | None) -> tuple[bool | None, str | None, list[dict], list[str], list[str], dict, object, dict]:
+    if not isinstance(payload, dict):
+        return None, None, [], [], [], {}, None, {}
+
+    cloud_pack = payload.get("cloud_pack")
+    if not isinstance(cloud_pack, dict):
+        cloud_pack = {}
+
+    cloud_safe = cloud_pack.get("cloud_safe")
+    brief = cloud_pack.get("brief")
+    hints = _lab_pack_hints(cloud_pack.get("hints"))
+
+    followups_raw = cloud_pack.get("followup_queries") or []
+    followups = [q for q in followups_raw if isinstance(q, str)]
+
+    warnings_raw = cloud_pack.get("warnings") or []
+    warnings = [w for w in warnings_raw if isinstance(w, str)]
+
+    meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
+    opsec_flags = payload.get("opsec_flags") or payload.get("opsec")
+
+    return cloud_safe, brief, hints, followups, warnings, meta, opsec_flags, cloud_pack
+
+# Quick self-check: python -m py_compile nextgen-mesh/ProxOffensive-LocalMesh/agents/prox_mesh.py
+
+
+def format_lab_pack_human(
+    *,
+    cloud_safe: bool | None,
+    brief: str | None,
+    hints: list[dict],
+    followups: list[str],
+    warnings: list[str],
+    objective: str,
+) -> str:
+    banner = "CLOUD-SAFE: UNKNOWN"
+    if cloud_safe is True:
+        banner = "CLOUD-SAFE: YES"
+    elif cloud_safe is False:
+        banner = "CLOUD-SAFE: NO"
+
+    lines: list[str] = [banner, f"Objective: {objective.strip()}", ""]
+
+    lines.append("PASTE INTO CLOUD MODEL:")
+    if brief:
+        lines.append(brief.strip())
+    else:
+        lines.append("(no brief returned; use hints metadata only)")
+    lines.append("")
+
+    lines.append("Hints (metadata only):")
+    if hints:
+        for idx, h in enumerate(hints, start=1):
+            parts: list[str] = []
+            if h.get("source_path"):
+                parts.append(str(h["source_path"]))
+            if h.get("line_number"):
+                parts.append(f"line {h['line_number']}")
+            if h.get("source_type"):
+                parts.append(f"[{h['source_type']}]")
+            header = " - ".join(part for part in parts if part) or "(metadata unavailable)"
+            lines.append(f"[{idx}] {header}".strip())
+            if h.get("abstractive_hint"):
+                lines.append(f"    {h['abstractive_hint']}")
+    else:
+        lines.append("  (none)")
+
+    lines.append("")
+    lines.append("Followup queries:")
+    if followups:
+        for fq in followups:
+            lines.append(f" - {fq}")
+    else:
+        lines.append("  (none)")
+
+    if warnings:
+        lines.append("")
+        lines.append("Warnings:")
+        for w in warnings:
+            lines.append(f" - {w}")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_lab_pack_log(payload: dict, log_path: Path) -> None:
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=False)
+        handle.write("\n")
+
+
+def build_lab_pack_cmd_parts(
+    *,
+    objective: str,
+    state_file: str,
+    host: str | None,
+    sources: str | None,
+    limit: int | None,
+    queries: int | None,
+    state_max_chars: int | None,
+    max_hints: int | None,
+    hint_length: int | None,
+    brief_length: int | None,
+    no_llm: bool,
+) -> list[str]:
+    cmd_parts = get_kb_cmd()
+
+    if host:
+        cmd_parts.extend(["--host", host])
+
+    cmd_parts = _drop_flag_with_value(cmd_parts, "--lab-pack")
+    cmd_parts = _drop_flag_with_value(cmd_parts, "--state-file")
+    cmd_parts.extend(["--lab-pack", objective, "--state-file", state_file])
+
+    if sources:
+        cmd_parts = _drop_flag_with_value(cmd_parts, "--sources")
+        cmd_parts.extend(["--sources", sources])
+    if limit is not None:
+        cmd_parts = _drop_flag_with_value(cmd_parts, "--limit")
+        cmd_parts.extend(["--limit", str(limit)])
+    if queries is not None:
+        cmd_parts = _drop_flag_with_value(cmd_parts, "--queries")
+        cmd_parts.extend(["--queries", str(queries)])
+    if state_max_chars is not None:
+        cmd_parts = _drop_flag_with_value(cmd_parts, "--state-max-chars")
+        cmd_parts.extend(["--state-max-chars", str(state_max_chars)])
+    if max_hints is not None:
+        cmd_parts = _drop_flag_with_value(cmd_parts, "--max-hints")
+        cmd_parts.extend(["--max-hints", str(max_hints)])
+    if hint_length is not None:
+        cmd_parts = _drop_flag_with_value(cmd_parts, "--hint-length")
+        cmd_parts.extend(["--hint-length", str(hint_length)])
+    if brief_length is not None:
+        cmd_parts = _drop_flag_with_value(cmd_parts, "--brief-length")
+        cmd_parts.extend(["--brief-length", str(brief_length)])
+    if no_llm and "--no-llm" not in cmd_parts:
+        cmd_parts.append("--no-llm")
+
+    return cmd_parts
+
+
+def run_lab_pack(
+    *,
+    objective: str,
+    state_file: str,
+    host: str | None,
+    sources: str | None,
+    limit: int | None,
+    queries: int | None,
+    state_max_chars: int | None,
+    max_hints: int | None,
+    hint_length: int | None,
+    brief_length: int | None,
+    no_llm: bool,
+    dry_run: bool,
+    json_only: bool,
+    log_path_str: str | None,
+) -> int:
+    cmd_parts = build_lab_pack_cmd_parts(
+        objective=objective,
+        state_file=state_file,
+        host=host,
+        sources=sources,
+        limit=limit,
+        queries=queries,
+        state_max_chars=state_max_chars,
+        max_hints=max_hints,
+        hint_length=hint_length,
+        brief_length=brief_length,
+        no_llm=no_llm,
+    )
+
+    log_path = (
+        _resolve_repo_relative_path(log_path_str)
+        if log_path_str
+        else _lab_pack_default_log_path()
+    )
+
+    if dry_run:
+        print("[prox-mesh] (dry-run) Would run KB command:\n  " + " ".join(cmd_parts))
+        print(f"[prox-mesh] (dry-run) Would write lab-pack log to:\n  {log_path}")
+        return 0
+
+    state_bytes: bytes | None = None
+    if state_file == "-":
+        state_bytes = sys.stdin.buffer.read()
+        if not state_bytes or not state_bytes.strip():
+            print(
+                "[prox-mesh] Error: --state-file - requires piped state content on stdin",
+                file=sys.stderr,
+            )
+            return 1
+
+    base_prog = cmd_parts[0]
+    if not tool_is_available(base_prog):
+        print(
+            "[prox-mesh] KB tool not found. "
+            f"Expected base command on PATH: {base_prog}\n"
+            "  Fix: install kb_ask wrapper or set PROXMESH_KB_CMD.",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        run_kwargs: dict[str, object] = {
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
+        }
+        if state_bytes is not None:
+            run_kwargs.update({"input": state_bytes, "text": False})
+        else:
+            run_kwargs.update({"text": True})
+        proc = subprocess.run(cmd_parts, **run_kwargs)  # type: ignore[arg-type]
+    except Exception as exc:
+        print(f"[prox-mesh] Error executing KB command: {exc}", file=sys.stderr)
+        return 1
+
+    stdout_text = proc.stdout.decode("utf-8", errors="replace") if isinstance(proc.stdout, (bytes, bytearray)) else (proc.stdout or "")
+    stderr_text = proc.stderr.decode("utf-8", errors="replace") if isinstance(proc.stderr, (bytes, bytearray)) else (proc.stderr or "")
+    error = None
+    payload: object | None = None
+    try:
+        payload = _parse_json_from_stdout(stdout_text)
+    except Exception as exc:
+        error = f"KB JSON parse failed: {exc}"
+
+    sanitized_payload = _strip_snippets(payload) if payload is not None else None
+    cloud_safe, brief, hints, followups, warnings, meta, opsec_flags, cloud_pack = _extract_lab_pack_fields(
+        sanitized_payload
+    )
+
+    state_label = "stdin" if state_file == "-" else state_file
+
+    kb_meta = meta if isinstance(meta, dict) else {}
+    if error:
+        kb_meta = dict(kb_meta)
+        kb_meta["error"] = error
+        kb_meta["returncode"] = proc.returncode
+    elif proc.returncode != 0:
+        kb_meta = dict(kb_meta)
+        kb_meta["returncode"] = proc.returncode
+
+    stderr_preview = None
+    if error or proc.returncode != 0:
+        if stderr_text:
+            stderr_preview = _redact_paths(stderr_text[:500])
+
+    log_payload = {
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "objective": objective,
+        "state_file": state_label,
+        "kb_meta": kb_meta or {},
+        "opsec_flags": opsec_flags,
+        "cloud_pack": cloud_pack or {},
+        "returncode": proc.returncode,
+    }
+    if stderr_preview:
+        log_payload["stderr_preview"] = stderr_preview
+
+    try:
+        write_lab_pack_log(log_payload, log_path)
+    except OSError as exc:
+        print(f"[prox-mesh] Warning: could not write lab-pack log to {log_path}: {exc}", file=sys.stderr)
+
+    if json_only:
+        safe_out = {
+            "cloud_safe": cloud_safe,
+            "brief": brief,
+            "hints": hints,
+            "followup_queries": followups,
+            "warnings": warnings,
+            "objective": objective,
+            "state_file": state_label,
+            "kb_meta": meta,
+            "error": error,
+        }
+        print(json.dumps(safe_out, indent=2, sort_keys=False))
+        return proc.returncode if proc.returncode != 0 else (1 if error else 0)
+
+    sys.stdout.write(
+        format_lab_pack_human(
+            cloud_safe=cloud_safe,
+            brief=brief,
+            hints=hints,
+            followups=followups,
+            warnings=warnings,
+            objective=objective,
+        )
+    )
+
+    if error:
+        print(f"[prox-mesh] Warning: {error}", file=sys.stderr)
+
+    return proc.returncode if proc.returncode != 0 else (1 if error else 0)
+
+
 def run_plan_kb(
     *,
     objective: str,
@@ -1103,6 +1795,155 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_common_args(sp_generate)
 
+    sp_prompt_kb = subparsers.add_parser(
+        "prompt-kb",
+        help="Produce a cloud-safe prompt pack from KB brief mode.",
+    )
+    sp_prompt_kb.add_argument(
+        "prompt",
+        nargs="*",
+        help="Objective text. If omitted, can come from --file or stdin.",
+    )
+    sp_prompt_kb.add_argument(
+        "-f",
+        "--file",
+        help="Read objective text from a file.",
+    )
+    sp_prompt_kb.add_argument(
+        "--kb-query",
+        help="Override the extracted KB query string (deterministic extraction otherwise).",
+    )
+    sp_prompt_kb.add_argument(
+        "--host",
+        help="Optional KB host target override.",
+    )
+    sp_prompt_kb.add_argument(
+        "--sources",
+        choices=["all", "books", "cpts", "htb"],
+        help="Restrict KB sources.",
+    )
+    sp_prompt_kb.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Limit number of KB results (default: 10).",
+    )
+    sp_prompt_kb.add_argument(
+        "--max-hints",
+        type=int,
+        default=5,
+        help="Max hints to request (default: 5).",
+    )
+    sp_prompt_kb.add_argument(
+        "--hint-length",
+        type=int,
+        default=120,
+        help="Hint length (default: 120).",
+    )
+    sp_prompt_kb.add_argument(
+        "--brief-length",
+        type=int,
+        default=1500,
+        help="Brief length (default: 1500).",
+    )
+    sp_prompt_kb.add_argument(
+        "--no-llm",
+        action="store_true",
+        help="Disable local LLM augmentation in KB tool.",
+    )
+    sp_prompt_kb.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the resolved KB command and log path without executing.",
+    )
+    sp_prompt_kb.add_argument(
+        "--json",
+        action="store_true",
+        help="Print JSON only (no human-friendly text).",
+    )
+    sp_prompt_kb.add_argument(
+        "--log-path",
+        help="Write prompt KB JSON to this path (relative to repo root or absolute).",
+    )
+
+    sp_lab_pack = subparsers.add_parser(
+        "lab-pack",
+        help="Package lab state for cloud-safe KB brief mode via SSH.",
+    )
+    sp_lab_pack.add_argument(
+        "prompt",
+        nargs="*",
+        help="Objective text. If omitted, can come from --file (stdin disabled when --state-file -).",
+    )
+    sp_lab_pack.add_argument(
+        "-f",
+        "--file",
+        help="Read objective text from a file.",
+    )
+    sp_lab_pack.add_argument(
+        "--state-file",
+        required=True,
+        help="Path to lab state file or '-' to read stdin.",
+    )
+    sp_lab_pack.add_argument(
+        "--host",
+        help="Optional KB host target override.",
+    )
+    sp_lab_pack.add_argument(
+        "--sources",
+        choices=["all", "books", "cpts", "htb"],
+        help="Restrict KB sources.",
+    )
+    sp_lab_pack.add_argument(
+        "--limit",
+        type=int,
+        help="Limit number of KB results.",
+    )
+    sp_lab_pack.add_argument(
+        "--queries",
+        type=int,
+        help="How many KB queries to run for lab-pack.",
+    )
+    sp_lab_pack.add_argument(
+        "--state-max-chars",
+        type=int,
+        help="Truncate state before sending upstream.",
+    )
+    sp_lab_pack.add_argument(
+        "--max-hints",
+        type=int,
+        help="Max hints to request.",
+    )
+    sp_lab_pack.add_argument(
+        "--hint-length",
+        type=int,
+        help="Hint length.",
+    )
+    sp_lab_pack.add_argument(
+        "--brief-length",
+        type=int,
+        help="Brief length.",
+    )
+    sp_lab_pack.add_argument(
+        "--no-llm",
+        action="store_true",
+        help="Disable local LLM augmentation in KB tool.",
+    )
+    sp_lab_pack.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the resolved KB command and log path without executing.",
+    )
+    sp_lab_pack.add_argument(
+        "--json",
+        action="store_true",
+        help="Print JSON only (no human-friendly text).",
+    )
+    sp_lab_pack.add_argument(
+        "--log-path",
+        help="Write lab-pack JSON to this path (relative to repo root or absolute).",
+    )
+
     def add_prompt_args(sp: argparse.ArgumentParser):
         sp.add_argument(
             "prompt",
@@ -1237,8 +2078,57 @@ def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    prompt = read_prompt(args)
     route = args.command
+
+    if (
+        route == "lab-pack"
+        and getattr(args, "state_file", None) == "-"
+        and not args.prompt
+        and not getattr(args, "file", None)
+    ):
+        print(
+            "[prox-mesh] Objective is required when piping state via --state-file -. "
+            "Provide positional text or --file while piping the state separately.",
+            file=sys.stderr,
+        )
+        return 1
+
+    allow_stdin_prompt = not (route == "lab-pack" and getattr(args, "state_file", None) == "-")
+    prompt = read_prompt(args, allow_stdin=allow_stdin_prompt)
+
+    if route == "prompt-kb":
+        return run_prompt_kb(
+            objective=prompt,
+            kb_query_override=getattr(args, "kb_query", None),
+            host=getattr(args, "host", None),
+            sources=getattr(args, "sources", None),
+            limit=getattr(args, "limit", None),
+            max_hints=getattr(args, "max_hints", None),
+            hint_length=getattr(args, "hint_length", None),
+            brief_length=getattr(args, "brief_length", None),
+            no_llm=getattr(args, "no_llm", False),
+            dry_run=getattr(args, "dry_run", False),
+            json_only=getattr(args, "json", False),
+            log_path_str=getattr(args, "log_path", None),
+        )
+
+    if route == "lab-pack":
+        return run_lab_pack(
+            objective=prompt,
+            state_file=args.state_file,
+            host=args.host,
+            sources=args.sources,
+            limit=args.limit,
+            queries=args.queries,
+            state_max_chars=args.state_max_chars,
+            max_hints=args.max_hints,
+            hint_length=args.hint_length,
+            brief_length=args.brief_length,
+            no_llm=args.no_llm,
+            dry_run=args.dry_run,
+            json_only=args.json,
+            log_path_str=args.log_path,
+        )
 
     if route == "plan-kb":
         return run_plan_kb(
