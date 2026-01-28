@@ -237,6 +237,18 @@ routes:
   generate: { agent: codex }
   sensitive_synthesis: { agent: ollama_mac }
 
+  fallback_policy:
+    default_agent: codex
+    fallbacks:
+      - when: opsec_sensitive_or_local_only
+        agent: ollama_mac
+        model_preference: ["qwen3:30b-a3b", "deepseek-r1:14b", "gpt-oss:20b"]
+      - when: longform_polish_or_critique
+        agent: claude
+      - when: research_or_mixed_artifacts
+        agent: gemini
+        optional: true
+
 END_REGISTRY_YAML
 ```
 
@@ -247,3 +259,21 @@ END_REGISTRY_YAML
 - Fill `last_updated`.
 - Replace placeholders like `<mac-tailscale-ip-or-hostname>` with **non-identifying** values in public copies.
 - Consider adding a `docs/internal/agents.private.md` if you want real hostnames/paths (still no secrets).
+
+
+## 4) Default Model + Fallback Ladder (Operational)
+
+**Default (Proxima / Clawdbot):** `openai-codex/gpt-5.2`
+
+**Fallback ladder (in order):**
+1) **Local (MacBook / Ollama)** — use when OPSEC-sensitive, KB/books/loot, or cloud budget is tight.
+   - **Preferred local default:** `qwen3:30b-a3b` (strong generalist; good reasoning + writing)
+   - **Reasoning specialist (when you want chain-of-thought style reasoning):** `deepseek-r1:14b` *(can be verbose / “thinking” heavy)*
+   - **Generalist alt:** `gpt-oss:20b`
+2) **Claude CLI (Pro)** — long-form structure, narrative clarity, critique passes; treat as a precision tool due to daily limits.
+3) **Gemini CLI (optional)** — fact-grounding + mixed artifacts (screenshots/UI) when installed.
+
+**Failure-mode routing:**
+- If Codex is rate-limited / budget tight → shift bulk synthesis to **local**, keep Codex for final repo edits.
+- If Claude daily cap hit → use **Codex + local** (Codex for structure, local for bulk).
+- If content is `LOCAL_ONLY` (copyrighted books / raw loot) → **local-only**; export cloud-safe briefs via KB tooling if needed.
