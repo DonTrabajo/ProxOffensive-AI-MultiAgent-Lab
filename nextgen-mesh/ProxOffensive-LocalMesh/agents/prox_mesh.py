@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 prox-mesh v1.0 - Prox Offensive Local Mesh Router
 
@@ -258,6 +259,91 @@ def tool_is_available(cmd: str) -> bool:
 def build_shell_command(base_cmd: str, combined_prompt: str) -> str:
     safe_prompt = combined_prompt.replace('"', '\\"')
     return f'{base_cmd} "{safe_prompt}"'
+
+# ---------------------------------------------------------------------------
+# Local Ollama (HTTP) helpers
+# ---------------------------------------------------------------------------
+
+DEFAULT_OLLAMA_BASE = os.getenv("PROXMESH_LOCAL_OLLAMA_BASE", "").strip()
+DEFAULT_OLLAMA_MODEL = os.getenv("PROXMESH_LOCAL_MODEL", "qwen3:30b-a3b").strip()
+
+
+def _ollama_post_json(base_url: str, path: str, payload: dict, timeout: int = 60) -> dict:
+    # POST JSON to Ollama and return parsed JSON response.
+    import urllib.request
+    import urllib.error
+
+    url = base_url.rstrip("/") + path
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode("utf-8", errors="replace") if e.fp else str(e)
+        raise RuntimeError(f"Ollama HTTPError {e.code}: {raw[:300]}")
+    except Exception as e:
+        raise RuntimeError(f"Ollama request failed: {e}")
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {"raw": raw}
+
+
+def run_local_ollama(prompt: str, *, model: str | None = None, base_url: str | None = None,
+                     dry_run: bool = False, no_context: bool = False, with_brain: bool = False,
+                     extra_context_file: str | None = None) -> int:
+    # Run a prompt against a local Ollama endpoint (non-streaming).
+    base = (base_url or DEFAULT_OLLAMA_BASE).strip()
+    if not base:
+        print("[prox-mesh] No Ollama base URL configured. Set PROXMESH_LOCAL_OLLAMA_BASE or pass --ollama-base.", file=sys.stderr)
+        return 1
+
+    use_model = (model or DEFAULT_OLLAMA_MODEL).strip()
+    combined_prompt = build_combined_prompt(route="loc", base_tool="ollama", user_prompt=prompt, include_context=not no_context, include_brain=with_brain, extra_context_file=extra_context_file)
+    payload = {"model": use_model, "prompt": combined_prompt, "stream": False}
+
+    if dry_run:
+        print("[prox-mesh] (dry-run) Would POST to:")
+        base_clean = base.rstrip("/")
+        print(f"  {base_clean}/api/generate")
+        print(f"  model={use_model}")
+        return 0
+
+    print(f"[prox-mesh] Running local Ollama model '{use_model}' at {base}")
+    resp = _ollama_post_json(base, "/api/generate", payload, timeout=180)
+    if isinstance(resp, dict) and "response" in resp:
+        sys.stdout.write(str(resp.get("response") or ""))
+        if not str(resp.get("response") or "").endswith("\n"):
+            sys.stdout.write("\n")
+        return 0
+    print(json.dumps(resp, indent=2))
+    return 0
+
+
+def run_doctor(*, base_url: str | None = None) -> int:
+    base = (base_url or DEFAULT_OLLAMA_BASE).strip()
+    def ok(label: str, status: bool, detail: str = ""):
+        mark = "OK" if status else "FAIL"
+        print(f"[{mark}] {label}" + (f" — {detail}" if detail else ""))
+    ok("codex on PATH", tool_is_available("codex"))
+    ok("claude on PATH", tool_is_available("claude"))
+    if base:
+        try:
+            import urllib.request
+            with urllib.request.urlopen(base.rstrip("/") + "/api/tags", timeout=10) as resp:
+                raw = resp.read().decode("utf-8", errors="replace")
+            data = json.loads(raw)
+            models = data.get("models") if isinstance(data, dict) else None
+            count = len(models) if isinstance(models, list) else None
+            ok("ollama /api/tags reachable", True, f"{base} (models={count})")
+        except Exception as e:
+            ok("ollama /api/tags reachable", False, str(e))
+    else:
+        ok("ollama base configured", False, "Set PROXMESH_LOCAL_OLLAMA_BASE")
+    return 0
+
 
 
 def run_route(route: str, prompt: str, dry_run: bool = False,
@@ -1764,6 +1850,14 @@ def build_parser() -> argparse.ArgumentParser:
             "--extra-context-file",
             help="Additional context file path (relative to repo root or absolute).",
         )
+        sp.add_argument(
+            "--opsec",
+            choices=["PUB", "INT", "CON", "RES", "LOC"],
+            help=(
+                "OPSEC classification hint. RES/LOC forces local-only routing (Ollama) "
+                "for plan/research/edit/ask/generate routes unless explicitly using kb tools."
+            ),
+        )
 
     sp_plan = subparsers.add_parser(
         "plan",
@@ -1794,6 +1888,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="Generate artifacts (reports, templates, checklists, etc.).",
     )
     add_common_args(sp_generate)
+
+
+    sp_loc = subparsers.add_parser(
+        "loc",
+        help="Run a local model call via Ollama HTTP (OPSEC-sensitive lane).",
+    )
+    add_common_args(sp_loc)
+    sp_loc.add_argument(
+        "--model",
+        help="Override local model (default: PROXMESH_LOCAL_MODEL or config).",
+    )
+    sp_loc.add_argument(
+        "--ollama-base",
+        help="Override Ollama base URL (default: PROXMESH_LOCAL_OLLAMA_BASE).",
+    )
+
+    sp_doctor = subparsers.add_parser(
+        "doctor",
+        help="Check tool availability + local Ollama connectivity.",
+    )
+    sp_doctor.add_argument(
+        "--ollama-base",
+        help="Override Ollama base URL (default: PROXMESH_LOCAL_OLLAMA_BASE).",
+    )
 
     sp_prompt_kb = subparsers.add_parser(
         "prompt-kb",
@@ -2093,8 +2211,34 @@ def main(argv=None) -> int:
         )
         return 1
 
+    if route == "doctor":
+        return run_doctor(base_url=getattr(args, "ollama_base", None))
+
     allow_stdin_prompt = not (route == "lab-pack" and getattr(args, "state_file", None) == "-")
     prompt = read_prompt(args, allow_stdin=allow_stdin_prompt)
+
+    if route == "loc":
+        return run_local_ollama(
+            prompt=prompt,
+            model=getattr(args, "model", None),
+            base_url=getattr(args, "ollama_base", None),
+            dry_run=getattr(args, "dry_run", False),
+            no_context=getattr(args, "no_context", False),
+            with_brain=getattr(args, "with_brain", False),
+            extra_context_file=getattr(args, "extra_context_file", None),
+        )
+
+    opsec = getattr(args, "opsec", None)
+    if opsec in ("RES", "LOC") and route in {"plan", "research", "edit", "ask", "generate"}:
+        print(f"[prox-mesh] OPSEC={opsec}: forcing local-only routing via Ollama.")
+        return run_local_ollama(
+            prompt=prompt,
+            dry_run=getattr(args, "dry_run", False),
+            no_context=getattr(args, "no_context", False),
+            with_brain=getattr(args, "with_brain", False),
+            extra_context_file=getattr(args, "extra_context_file", None),
+        )
+
 
     if route == "prompt-kb":
         return run_prompt_kb(
