@@ -140,6 +140,8 @@ Recon/product agents (like **ReconOps Prox**) should:
 
 When in doubt, prefer these docs in this order:
 
+0. `security/README.md`  <- multi-agent security hardening entry point
+
 1. `docs/project_brain.md`  <- this file  
 2. `Repo_Architecture_Map.md`  
 3. `codex.md` and `docs/codex_quickstart.md`  
