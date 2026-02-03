@@ -170,9 +170,9 @@ Removed from repo tree:
 - `state/` directory (now gitignored)
 
 ## Secret Scanning
-Attempted tooling:
-- `gitleaks`: not installed in this environment
-- `trufflehog`: install failed due to blocked network access during `pip` download
+Tooling:
+- `gitleaks`: downloaded release to `/tmp` and executed locally (see results below)
+- `trufflehog`: not used
 
 Recommended follow-up commands (run locally):
 - Working tree scan (gitleaks): `gitleaks detect --source . --no-git`
@@ -180,7 +180,13 @@ Recommended follow-up commands (run locally):
 - Working tree scan (trufflehog): `trufflehog filesystem .`
 - History scan (trufflehog): `trufflehog git file://$(pwd)`
 
+## Local Secret Scan Results
+- Tool: `gitleaks` v8.30.0 (downloaded release tarball via `curl` to `/tmp`, executed as `/tmp/gitleaks`)
+- Date/time: 2026-02-03T17:53:29-05:00
+- Working tree scan: `gitleaks detect --redact --no-git` → no leaks found
+- History scan: `gitleaks detect --redact` → no leaks found
+
 ## Follow-Up Recommendations
-1. Replace `<SECURITY_EMAIL>` in `SECURITY.md` with the real reporting address.
-2. Run the secret scans above on a machine with `gitleaks` or `trufflehog` installed and record results.
+1. Confirm the `SECURITY.md` contact address is correct (now set to `felix.gutierrez@proxoffensive.com`).
+2. Optionally run an additional `trufflehog` scan for defense-in-depth, and re-run `gitleaks` after significant changes.
 3. Consider deleting or archiving `logs/` locally if they contain sensitive operational data.

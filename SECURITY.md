@@ -3,7 +3,7 @@
 ## Reporting a Vulnerability
 Please report security issues by email:
 
-- <SECURITY_EMAIL>
+- felix.gutierrez@proxoffensive.com
 
 Include:
 - a brief description of the issue
