@@ -13,7 +13,7 @@
 ## 2) Environment Snapshot
 - OS: macOS 15.7.4 (arm64)
 - Node (system): v25.2.1 at `/opt/homebrew/bin/node`
-- Clawdbot CLI: v2026.1.24-3 at `/Users/Felix/.nvm/versions/node/v24.13.0/bin/clawdbot`
+- Clawdbot CLI: v2026.1.24-3 at `/Users/<USER>/.nvm/versions/node/v24.13.0/bin/clawdbot`
 - Gateway port: `18789` (loopback)
 
 ## 3) Timeline of Fixes (High-Level)

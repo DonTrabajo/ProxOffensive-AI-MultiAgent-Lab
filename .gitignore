@@ -1,6 +1,9 @@
 .claude/
 logs/
 *.jsonl
+local/*
+!local/README.md
+state/
 
 
 __pycache__/

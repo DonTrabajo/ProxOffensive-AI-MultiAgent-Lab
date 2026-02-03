@@ -17,7 +17,7 @@
 
 ## Mesh Harness Reality Check
 - **prox_mesh.py (v1.0)** is the only executable harness. It builds combined prompts from repo context, checks tool availability, and shells out to the configured CLI per route. It is runnable now if the target CLIs exist (use `--dry-run` otherwise).
-- **New KB hook:** `prox-mesh kb "<query>" [--log-path ...]` shells to `python "C:\Users\Felix\bin\kb_ask.py" --raw "<query>"`, streams stdout, and appends JSONL entries with timestamp/query/opsec_flags to `logs/kb_queries.jsonl` (overridable via `PROXMESH_KB_LOG` or `--log-path`).
+- **New KB hook:** `prox-mesh kb "<query>" [--log-path ...]` shells to `python "C:\Users\<USER>\bin\kb_ask.py" --raw "<query>"`, streams stdout, and appends JSONL entries with timestamp/query/opsec_flags to `logs/kb_queries.jsonl` (overridable via `PROXMESH_KB_LOG` or `--log-path`).
 - Other harness pieces (orchestrators/routers/dispatchers) are design-only in docs: `nextgen-mesh/docs/nextgen/*.md`, Repo_Architecture_Map.md, MultiAgentLab_NextGenMesh_Summary.md. No additional code for orchestration is present.
 - The PowerShell smart launcher described in session_2025-11-21 is absent from the repo; only the Python core is here.
 
@@ -28,7 +28,7 @@
 
 ## What Runs Today (commands you can execute)
 - `python nextgen-mesh/ProxOffensive-LocalMesh/agents/prox_mesh.py plan "..." --dry-run` (or other routes) — shows resolved shell command using configured CLIs.
-- `python nextgen-mesh/ProxOffensive-LocalMesh/agents/prox_mesh.py kb "kerberoasting" --dry-run` — shows how the KB wrapper would be called; drop `--dry-run` to execute if `C:\Users\Felix\bin\kb_ask.py` is present.
+- `python nextgen-mesh/ProxOffensive-LocalMesh/agents/prox_mesh.py kb "kerberoasting" --dry-run` — shows how the KB wrapper would be called; drop `--dry-run` to execute if `C:\Users\<USER>\bin\kb_ask.py` is present.
 - If your PATH already includes a `prox-mesh` launcher, the same subcommands apply; otherwise call via `python .../prox_mesh.py`.
 
 ## Design / Stub Only
@@ -42,4 +42,4 @@
 - Add health checks/tests for prox-mesh (e.g., `--doctor` to verify tool availability, KB wrapper path, and log write perms) plus a minimal config file to avoid env-var drift.
 
 ## Bonus: Minimal v0 KB Harness
-- Added `prox-mesh kb "<query>"` route that calls `python "C:\Users\Felix\bin\kb_ask.py" --raw "<query>"` and appends JSONL to `logs/kb_queries.jsonl` with timestamp, query, returncode, and any `opsec_flags` in the response. Override command via `PROXMESH_KB_CMD`; override log path via `PROXMESH_KB_LOG` or `--log-path`.
+- Added `prox-mesh kb "<query>"` route that calls `python "C:\Users\<USER>\bin\kb_ask.py" --raw "<query>"` and appends JSONL to `logs/kb_queries.jsonl` with timestamp, query, returncode, and any `opsec_flags` in the response. Override command via `PROXMESH_KB_CMD`; override log path via `PROXMESH_KB_LOG` or `--log-path`.

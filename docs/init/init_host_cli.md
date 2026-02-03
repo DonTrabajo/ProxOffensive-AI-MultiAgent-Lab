@@ -22,7 +22,7 @@ Workflow pattern:
 Base directory:
 
 ```
-C:\Users\Felix\workspace\
+C:\Users\<USER>\workspace\
 ```
 
 Structure:
@@ -46,7 +46,7 @@ workspace/
 Profile located at:
 
 ```
-C:\Users\Felix\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1
+C:\Users\<USER>\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1
 ```
 
 Custom prompt displays:
@@ -57,7 +57,7 @@ Custom prompt displays:
 Example:
 
 ```
-Felix@FULCRO [11:42] ~\workspace\repos\proxoffensive-ai-multiagent-lab
+<USER>@<HOSTNAME> [11:42] ~\workspace\repos\proxoffensive-ai-multiagent-lab
 >
 ```
 
@@ -66,12 +66,12 @@ Felix@FULCRO [11:42] ~\workspace\repos\proxoffensive-ai-multiagent-lab
 ## 4. DonT’sWorkspace Shortcut
 A Windows shortcut that:
 - Launches PowerShell
-- Starts in `C:\Users\Felix\workspace`
+- Starts in `C:\Users\<USER>\workspace`
 
 Shortcut target:
 
 ```
-powershell.exe -NoLogo -NoExit -Command "Set-Location 'C:\Users\Felix\workspace'"
+powershell.exe -NoLogo -NoExit -Command "Set-Location 'C:\Users\<USER>\workspace'"
 ```
 
 This enforces a consistent starting point for all host-side work.
@@ -100,7 +100,7 @@ No cloud keys required.
 Host loot folder:
 
 ```
-C:\Users\Felix\workspace\loot
+C:\Users\<USER>\workspace\loot
 ```
 
 Mounted inside Kali via VMware:
@@ -112,12 +112,11 @@ sudo mount -t fuse.vmhgfs-fuse .host:/ /mnt/hgfs -o allow_other
 ls /mnt/hgfs/loot
 ```
 
-Kali → Host examples:
+Kali → Host examples (sanitized placeholders):
 
 ```bash
-./linpeas.sh > /mnt/hgfs/loot/linpeas.txt
-nmap -A 10.10.10.10 -oN /mnt/hgfs/loot/nmap_target.txt
 cp ~/Pictures/screenshot.png /mnt/hgfs/loot/
+cp ~/Downloads/<TOOL_OUTPUT>.txt /mnt/hgfs/loot/
 ```
 
 Never store loot permanently in Kali.

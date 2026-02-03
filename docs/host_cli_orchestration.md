@@ -18,7 +18,7 @@ Kali VM acts as the execution layer (enumeration, exploitation, pivoting), with 
 ## Directory Structure
 
 ```
-C:\Users\Felix\workspace\
+C:\Users\<USER>\workspace\
     repos\          # All Git repos
     loot\           # Kali → Host loot
     notes\          # Writeups & analysis
@@ -39,7 +39,7 @@ A custom prompt was configured to show:
 Example:
 
 ```
-Felix@FULCRO [11:42] ~\workspace\repos\DonTrabajoGPT (main)
+<USER>@<HOSTNAME> [11:42] ~\workspace\repos\<REPO> (main)
 >
 ```
 
@@ -51,7 +51,7 @@ This profile loads automatically when launching the “DonT'sWorkspace” shortc
 A Windows shortcut was created that opens PowerShell directly inside:
 
 ```
-C:\Users\Felix\workspace
+C:\Users\<USER>\workspace
 ```
 
 This creates a stable, frictionless launch point for all host-side operations.
@@ -62,7 +62,7 @@ This creates a stable, frictionless launch point for all host-side operations.
 All project repositories were consolidated under:
 
 ```
-C:\Users\Felix\workspace\repos
+C:\Users\<USER>\workspace\repos
 ```
 
 Repos include:
@@ -118,7 +118,7 @@ python -m pip install --user openai
 A shared folder was created on the host:
 
 ```
-C:\Users\Felix\workspace\loot
+C:\Users\<USER>\workspace\loot
 ```
 
 Then mounted inside Kali using:

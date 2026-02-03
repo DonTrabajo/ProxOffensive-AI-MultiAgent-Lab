@@ -19,7 +19,7 @@ It captures what’s been done and what we’re aiming to do next.
 ### 1.2 Host CLI & Orchestration Documentation
 
 - `docs/host_cli_setup.md` documents:
-  - Host workspace layout: `C:\Users\Felix\workspace\repos`, `loot`, `notes`, `docs`, `scripts`.
+  - Host workspace layout: `C:\Users\<USER>\workspace\repos`, `loot`, `notes`, `docs`, `scripts`.
   - PowerShell profile + DonT’sWorkspace shortcut.
   - User-scoped Python + AI SDK installs.
   - Shared loot folder between Kali and Host.

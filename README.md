@@ -12,6 +12,21 @@ Each AI agent serves a defined role in the offensive workflow — from structure
 
 ---
 
+## Public Repo Standard
+This repo is public and intentionally sanitized.
+
+Published:
+- methodology and architecture
+- defensive artifacts (threat model, control plane, probe packs, incident response)
+- sanitized demos and templates
+
+Not published:
+- credentials, tokens, or secrets
+- target data, client details, or live operational state
+- step-by-step offensive runbooks or exploitation instructions
+
+---
+
 ## Core Components
 - **ChatGPT Plus (GPT-4 Turbo)** – orchestration and structured logic  
 - **Claude Pro CLI** – long-context reporting and documentation  
@@ -43,7 +58,15 @@ For multi-agent prompt-injection / tool-abuse hardening (Arcanum taxonomy + OWAS
 
 See the Multi-Agent Lab docs:
 
-https://github.com/DonTrabajo/proxoffensive-ai-multiagent-lab/blob/main/docs/host_cli_orchestration.md
+`docs/host_cli_orchestration.md`
+
+---
+
+## Proof of Work
+- `security/THREAT_MODEL.md`
+- `security/CONTROL_PLANE.md`
+- `security/PROBE_PACKS.md`
+- `security/INCIDENT_RESPONSE.md`
 
 
 ## License

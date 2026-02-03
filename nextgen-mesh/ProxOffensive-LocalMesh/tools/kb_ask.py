@@ -2,7 +2,7 @@
 """
 Repository-scoped KB wrapper for Windows -> Mac SSH bridge.
 
-Behavior aligns with the legacy kb_ask.py in C:\\Users\\Felix\\bin but adds
+Behavior aligns with the legacy kb_ask.py in C:\\Users\\<USER>\\bin but adds
 `--brief cloud` support for cloud-safe prompt packs.
 """
 
@@ -16,7 +16,8 @@ import subprocess
 import sys
 from typing import Any, Dict, List
 
-DEFAULT_HOST = os.environ.get("KB_MAC_HOST", "felix-macbook.local")
+DEFAULT_USER = os.environ.get("KB_MAC_USER", "kb")
+DEFAULT_HOST = os.environ.get("KB_MAC_HOST", "kb-mac.local")
 REMOTE_CMD = os.environ.get("KB_REMOTE_CMD", "~/Documents/Prox_KB/cli/kb_query")
 
 
@@ -26,12 +27,12 @@ class KBError(Exception):
 
 def _sanitize_host(host: str) -> str:
     """
-    Allow simple aliases or explicit user@host; otherwise prefix felix@.
+    Allow simple aliases or explicit user@host; otherwise prefix DEFAULT_USER@.
     """
     alias_pattern = r"[A-Za-z0-9_-]+"
     if "@" in host or re.fullmatch(alias_pattern, host):
         return host
-    return f"felix@{host}"
+    return f"{DEFAULT_USER}@{host}"
 
 
 def _build_lab_pack_args(objective: str, args: argparse.Namespace) -> List[str]:
@@ -179,7 +180,7 @@ def main(argv: List[str]) -> int:
         choices=["cloud"],
         help="Request brief mode (cloud pack).",
     )
-    parser.add_argument("--host", help="SSH host or alias override (defaults to KB_MAC_HOST or felix-macbook.local)")
+    parser.add_argument("--host", help="SSH host or alias override (defaults to KB_MAC_HOST or kb-mac.local)")
 
     args = parser.parse_args(argv)
 

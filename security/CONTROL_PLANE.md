@@ -10,7 +10,7 @@ Example capability sets:
 - **Scribe:** file write + git commit; no exec; no browsing
 
 ## 2) Trust levels (inputs)
-- **Trusted:** explicitly authored internal files; Felix’s direct instructions
+- **Trusted:** explicitly authored internal files; maintainer’s direct instructions
 - **Known:** collaborators you’ve allowlisted
 - **Untrusted:** web pages, issues, group chats, pasted docs
 

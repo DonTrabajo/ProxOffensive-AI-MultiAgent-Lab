@@ -42,7 +42,7 @@ A unified router that sends high-level commands to the correct backend AI tool, 
 
 The launcher:
 
-- Lives in a folder on PATH (e.g., `C:\Users\Felix\bin`)
+- Lives in a folder on PATH (e.g., `C:\Users\<USER>\bin`)
 - Finds prox_mesh.py automatically
 - Verifies Python availability
 - Warns if repo is behind origin
@@ -61,7 +61,7 @@ prox-mesh plan "Design a Slingshot + Kali engagement tree."
 Claude Code ≠ Claude CLI.
 
 The installer placed `claude.exe` at:  
-`C:\Users\Felix\.local\bin\claude.exe`
+`C:\Users\<USER>\.local\bin\claude.exe`
 
 Fix:  
 Add that folder to PATH permanently.

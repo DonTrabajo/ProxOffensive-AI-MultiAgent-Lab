@@ -2,7 +2,7 @@
 
 ## Components
 - `kb_query` (Mac): CLI that searches local KB content under `books/_processed/`, `cpts/`, and `htb/` with deterministic ranking (cpts>htb>books). Uses `rg` when present, falls back to `grep`.
-- `kb_ask` (Windows): SSH wrapper that forwards queries to `kb_query` (`ssh felix@<mac-host> ~/Documents/Prox_KB/tools/kb_query ...`). No local logs are written by default.
+- `kb_ask` (Windows): SSH wrapper that forwards queries to `kb_query` (`ssh <USER>@<MAC_HOST> ~/Documents/Prox_KB/tools/kb_query ...`). No local logs are written by default.
 - LLM: Ollama-only; model name from `LOCAL_LLM_MODEL` or config default. `--no-llm` forces pass-through results.
 
 ## Contract
@@ -41,8 +41,8 @@
 - `~/Documents/Prox_KB/tools/kb_query --stats` (reports indexed books, files scanned, search tool)
 
 ## Usage (Windows wrapper)
-- `C:\Users\Felix\bin\kb_ask.py "kerberoasting" --raw | python -m json.tool`
-- `C:\Users\Felix\bin\kb_ask.py "suid" --no-llm --no-snippets`
+- `C:\Users\<USER>\bin\kb_ask.py "kerberoasting" --raw | python -m json.tool`
+- `C:\Users\<USER>\bin\kb_ask.py "suid" --no-llm --no-snippets`
 
 ## OPSEC Rules
 - Copyrighted books stay on Mac only. Do **not** send snippets/raw hits to any cloud model.

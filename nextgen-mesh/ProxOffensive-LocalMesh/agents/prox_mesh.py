@@ -91,8 +91,8 @@ def parse_kb_cmd(env_value: str | None) -> list[str]:
     Parse PROXMESH_KB_CMD into a list of argv tokens.
 
     Supports:
-      a) JSON array: ["python", "C:\\Users\\Felix\\bin\\kb_ask.py", "--raw"]
-      b) String command: python "C:\\Users\\Felix\\bin\\kb_ask.py" --raw
+      a) JSON array: ["python", "C:\\Users\\<USER>\\bin\\kb_ask.py", "--raw"]
+      b) String command: python "C:\\Users\\<USER>\\bin\\kb_ask.py" --raw
 
     For string format, strips surrounding quotes from each token.
     Returns DEFAULT_KB_CMD if env_value is None or empty.
