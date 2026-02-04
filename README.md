@@ -6,7 +6,7 @@
 ---
 
 ## Overview
-This repository documents the development of a **multi-agent, local-first AI lab** designed for red-team research, training, and creative workflow automation.
+This repository documents the development of a **multi-agent, local-first AI lab** built around a **security-hardened Clawdbot/OpenClaw mesh orchestrator** for red-team research, training, and creative workflow automation.
 
 Each AI agent serves a defined role in the offensive workflow — from structured reasoning to secure, offline synthesis — combining precision, privacy, and creativity.
 
@@ -27,13 +27,18 @@ Not published:
 
 ---
 
-## Core Components
-- **ChatGPT Plus (GPT-4 Turbo)** – orchestration and structured logic  
-- **Claude Pro CLI** – long-context reporting and documentation  
-- **Gemini CLI** – quick lookup and validation  
-- **Local LLMs (gpt-oss 20B / DeepSeek)** – on-device synthesis  
-- **Duck.ai** – browser reviewers for ensemble reasoning  
-- **Atlas Browser** – redacted research and drafting lane  
+## Core Components (Current)
+Authoritative agent/tool registry (public-safe): **[AGENTS.md](./AGENTS.md)**
+
+- **Clawdbot/OpenClaw Mesh Orchestrator (Proxima)** – security-hardened tool-using control plane; enforces OPSEC + lane discipline
+- **ChatGPT-Codex (GPT‑5.2)** – primary “repo engineer” for structured logic, coding, and doc refactors
+- **Claude CLI** – long-context writing, critique passes, and final narrative polish
+- **Gemini CLI (optional)** – fact checks + mixed artifacts (UI/screenshots) when installed
+- **Local LLMs (Ollama on Mac lane)** – OPSEC-sensitive / offline synthesis (e.g., DeepSeek, GPT‑OSS, Qwen)
+- **Duck.ai reviewer loop** – contradiction hunting / second opinions before publishing
+- **Atlas (safe research lane)** – redacted intake + safer browsing workflows
+
+Lane discipline (high level): **Host = brain + archive · Kali = blade · Mac = heavy local-LLM lane**
 
 ---
 
